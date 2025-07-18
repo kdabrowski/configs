@@ -1,0 +1,194 @@
+-- ~/.config/nvim/after/plugin/lsp_zero.lua
+
+local lsp_zero = require('lsp-zero')
+local cmp_nvim_lsp = require('cmp_nvim_lsp')
+
+-- General capabilities for all LSPs
+local capabilities = cmp_nvim_lsp.default_capabilities()
+
+-- Setup Mason
+require('mason').setup()
+require('mason-lspconfig').setup({
+  handlers = {
+    -- Default handler
+    lsp_zero.default_setup,
+
+    -- Solargraph
+    solargraph = function()
+      require('lspconfig').solargraph.setup({
+        capabilities = capabilities,
+        settings = {
+          diagnostics = true,
+          useBundler = true,
+        },
+      })
+    end,
+
+    vue_ls = function()
+      require('lspconfig').vue_ls.setup({
+        filetypes = { "vue", "typescript", "javascript", "typescriptreact", "javascriptreact" },
+        init_options = {
+          typescript = {
+            tsdk = "/full/path/to/your/typescript/lib", -- adjust path accordingly
+          },
+        },
+        settings = {
+          typescript = {
+            inlayHints = {
+              enumMemberValues = { enabled = true },
+              functionLikeReturnTypes = { enabled = true },
+              parameterTypes = { enabled = true, suppressWhenArgumentMatchesName = true },
+              propertyDeclarationTypes = { enabled = true },
+              variableTypes = { enabled = true },
+            },
+          },
+        },
+      })
+    end,
+
+    -- Rubocop
+    rubocop = function()
+      require('lspconfig').rubocop.setup({
+        capabilities = capabilities,
+        settings = {
+          executePath = '/Users/krzysztofdabrowski/.rvm/gems/ruby-3.1.6@global/bin/',
+        },
+      })
+    end,
+
+    -- TypeScript LS with Vue plugin
+    ts_ls = function()
+      require('lspconfig').ts_ls.setup({
+        capabilities = capabilities,
+        init_options = {
+          plugins = {
+            {
+              name = "@vue/typescript-plugin",
+              location = vim.fn.expand("~/.local/share/nvim/mason/packages/vue-language-server/node_modules/@vue/language-server/@vue/typescript-plugin"),
+              languages = { "vue" },
+            },
+          },
+        },
+        filetypes = {
+          'javascript',
+          'javascriptreact',
+          'javascript.jsx',
+          'typescript',
+          'typescriptreact',
+          'typescript.tsx',
+        },
+      })
+    end,
+
+    -- Vue language server
+    ['vue-language-server'] = function()
+      local lspconfig = require('lspconfig')
+      local configs = require('lspconfig.configs')
+      local util = require('lspconfig.util')
+
+      -- Register manually if not already defined
+      if not configs.vue_ls then
+        configs.vue_ls = {
+          default_config = {
+            cmd = { "vue-language-server", "--stdio" },
+            filetypes = { "vue", "javascript", "javascriptreact", "typescript", "typescriptreact" },
+            root_dir = util.root_pattern("package.json", "vite.config.ts", "vite.config.js", ".git"),
+            init_options = {
+              typescript = {
+                tsdk = vim.fn.expand("~/.nvm/versions/node/v22.17.0/lib/node_modules/typescript/lib"),
+              },
+            },
+            settings = {},
+          }
+        }
+      end
+
+      lspconfig.vue_ls.setup({
+        capabilities = capabilities,
+        settings = {
+          typescript = {
+            inlayHints = {
+              enumMemberValues = { enabled = true },
+              functionLikeReturnTypes = { enabled = true },
+              parameterTypes = { enabled = true, suppressWhenArgumentMatchesName = true },
+              propertyDeclarationTypes = { enabled = true },
+              variableTypes = { enabled = true },
+            },
+          },
+        },
+      })
+    end,
+
+    -- CSS
+    cssls = function()
+      require('lspconfig').cssls.setup({
+        capabilities = capabilities,
+        settings = {
+          css = { validate = true },
+          scss = { validate = true },
+          less = { validate = true },
+        },
+      })
+    end,
+
+    -- Eslint
+    eslint = function()
+      require('lspconfig').eslint.setup({
+        capabilities = capabilities,
+        on_attach = function(client, _)
+          client.server_capabilities.documentFormattingProvider = false
+        end,
+      })
+    end,
+  },
+})
+
+-- Register the custom mapping so mason-lspconfig can find the server binary:
+require("mason-lspconfig").setup({
+  ensure_installed = { "vue_ls" },
+  -- Add the mapping here:
+  automatic_installation = true,
+})
+-- then add this override to `mason-lspconfig` internal registry:
+require("mason-lspconfig").setup_handlers({
+  vue_ls = function()
+    require("lspconfig").vue_ls.setup({
+      -- your config here
+    })
+  end,
+})
+
+-- Add this if needed (sometimes needed to register the command):
+local configs = require("lspconfig.configs")
+local util = require("lspconfig.util")
+
+if not configs.vue_ls then
+  configs.vue_ls = {
+    default_config = {
+      cmd = { "vue-language-server", "--stdio" },
+      filetypes = { "vue", "javascript", "javascriptreact", "typescript", "typescriptreact" },
+      root_dir = util.root_pattern("package.json", "vite.config.ts", "vite.config.js", ".git"),
+      settings = {},
+      init_options = {
+        typescript = {
+          tsdk = vim.fn.stdpath("data") .. "/mason/packages/typescript-language-server/node_modules/typescript/lib",
+        },
+      },
+    },
+  }
+end
+
+-- Setup null-ls
+require('null-ls').setup({
+  sources = {
+    require('null-ls').builtins.diagnostics.eslint_d,
+    require('null-ls').builtins.code_actions.eslint_d,
+    require('null-ls').builtins.formatting.prettierd,
+  },
+})
+
+-- lsp-zero general on_attach
+lsp_zero.on_attach(function(client, bufnr)
+  lsp_zero.default_keymaps({ buffer = bufnr })
+end)
+
